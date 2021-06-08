@@ -27,12 +27,12 @@ public class OrderProduct {
     @Column(nullable = false)
     private BigDecimal price;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = {CascadeType.REFRESH, CascadeType.DETACH, CascadeType.PERSIST})
     @JoinColumn(name = "product_id")
     private Product product;
 
     @JsonBackReference
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = {CascadeType.REFRESH, CascadeType.DETACH, CascadeType.PERSIST})
     @JoinColumn(name = "order_id")
     private Order order;
 }
