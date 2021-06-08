@@ -1,6 +1,6 @@
 package com.company.interview.controller;
 
-import com.company.interview.dto.OrderPeriod;
+import com.company.interview.dto.OrderPeriodDto;
 import com.company.interview.model.Order;
 import com.company.interview.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -27,29 +26,24 @@ public class OrderController {
     }
 
     @GetMapping("/period")
-    public ResponseEntity<List<Order>> getOrdersFromPeriod(OrderPeriod orderPeriod) {
-        return new ResponseEntity<>(orderService.getOrdersFromPeriod(orderPeriod), HttpStatus.OK);
-    }
-
-    @GetMapping("/{orderId}")
-    public ResponseEntity<Order> getOrder(@PathVariable Long orderId) {
-        Optional<Order> order = orderService.getOrder(orderId);
-        return order.map(value -> new ResponseEntity<>(value, HttpStatus.CREATED)).orElseGet(() -> new ResponseEntity<>(HttpStatus.BAD_REQUEST));
+    public ResponseEntity<List<Order>> getOrdersFromPeriod(OrderPeriodDto orderPeriodDto) {
+        return new ResponseEntity<>(orderService.getOrdersFromPeriod(orderPeriodDto), HttpStatus.OK);
     }
 
     @PostMapping("")
-    public ResponseEntity<String> openOrder() {
-        Order order = orderService.openOrder();
-        return new ResponseEntity<>("Order " + order.getOrderId() + " was created", HttpStatus.CREATED);
+    public ResponseEntity<?> openOrder() {
+        return new ResponseEntity<>("Order " + orderService.openOrder().getOrderId() + " was created", HttpStatus.CREATED);
     }
 
-    @PatchMapping("/{orderId}")
-    public ResponseEntity<String> closeOrder(@PathVariable Long orderId) {
-        Long closedOrderId = orderService.closeOrder(orderId);
-        if (closedOrderId > 0) {
-            return new ResponseEntity<>("Order " + closedOrderId + " was closed", HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+    @PatchMapping("/calculate/{orderId}")
+    public ResponseEntity<?> calculateOrder(@PathVariable Long orderId) {
+        Order order = orderService.calculateOrder(orderId);
+        return new ResponseEntity<>("Values for order " + order.getOrderId() + " was updated", HttpStatus.OK);
+    }
+
+    @PatchMapping("/close/{orderId}")
+    public ResponseEntity<?> closeOrder(@PathVariable Long orderId) {
+        Order order = orderService.closeOrder(orderId);
+        return new ResponseEntity<>("Order " + order.getOrderId() + " was closed", HttpStatus.OK);
     }
 }

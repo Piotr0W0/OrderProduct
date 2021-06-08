@@ -1,6 +1,8 @@
 package com.company.interview.service;
 
 import com.company.interview.dto.OrderProductDto;
+import com.company.interview.exception.order.OrderNotFoundException;
+import com.company.interview.exception.product.ProductNotFoundException;
 import com.company.interview.model.Order;
 import com.company.interview.model.OrderProduct;
 import com.company.interview.model.Product;
@@ -10,6 +12,7 @@ import com.company.interview.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,40 +34,25 @@ public class OrderProductService {
         return new ArrayList<>(orderProductRepository.findAll());
     }
 
-
     public Optional<OrderProduct> postOrderProduct(OrderProductDto orderProductDto) {
         if (!orderProductDto.hasInvalidAttributes()) {
-            Optional<Product> optionalProduct = productRepository.findById(orderProductDto.getProductId());
-            Optional<Order> order = orderRepository.findById(orderProductDto.getOrderId());
-            if (optionalProduct.isPresent() && order.isPresent()) {
+            Product product = productRepository.findById(orderProductDto.getProductId()).orElseThrow(() -> new ProductNotFoundException(orderProductDto.getProductId()));
+            Order order = orderRepository.findById(orderProductDto.getOrderId()).orElseThrow(() -> new OrderNotFoundException(orderProductDto.getOrderId()));
+            if (!order.getIsDone()) {
                 OrderProduct orderProduct = new OrderProduct();
                 orderProduct.setQuantity(orderProductDto.getQuantity());
-                Product product = optionalProduct.get();
-
-                if (order.get().getIsDone()) {
-                    orderProduct.setPrice(product.getLastPrice());
-                } else {
-                    orderProduct.setPrice(product.getPrice());
-                }
-
-
+                orderProduct.setPrice(product.getPrice());
                 orderProduct.setProduct(product);
-                orderRepository.save(order.get());
-                orderProduct.setOrder(order.get());
-                order.get().getOrderProducts().add(orderProduct);
-                order.get().setTotalPrice(getTotalPrice(order.get()));
+                orderRepository.save(order);
+                orderProduct.setOrder(order);
+                order.getOrderProducts().add(orderProduct);
+                order.setTotalPrice(order.getOrderProducts().stream().mapToDouble(d -> d.getQuantity() * d.getPrice().doubleValue()).sum());
+                order.setModificationDate(LocalDateTime.now());
                 orderProductRepository.save(orderProduct);
+
                 return Optional.of(orderProduct);
             }
         }
         return Optional.empty();
-    }
-
-    private double getTotalPrice(Order order) {
-        double bigDecimal = 0.0;
-        for (OrderProduct orderProduct : order.getOrderProducts()) {
-            bigDecimal += orderProduct.getQuantity() * orderProduct.getPrice().doubleValue();
-        }
-        return bigDecimal;
     }
 }

@@ -1,6 +1,6 @@
 package com.company.interview.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,9 +10,11 @@ import lombok.Setter;
 @NoArgsConstructor
 public class OrderProductDto {
     private Long quantity;
-    @JsonAlias("product_id")
+
+    @JsonProperty("product_id")
     private Long productId;
-    @JsonAlias("order_id")
+
+    @JsonProperty("order_id")
     private Long orderId;
 
     public boolean hasInvalidAttributes() {

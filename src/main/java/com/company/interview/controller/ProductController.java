@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/products")
@@ -26,18 +27,19 @@ public class ProductController {
     }
 
     @PostMapping("")
-    public ResponseEntity<String> postProduct(@RequestBody ProductDto productDto) {
-        if (productService.postProduct(productDto).isPresent()) {
+    public ResponseEntity<?> postProduct(@RequestBody ProductDto productDto) {
+        Optional<Product> optionalProduct = productService.postProduct(productDto);
+        if (optionalProduct.isPresent()) {
             return new ResponseEntity<>("Product was created", HttpStatus.CREATED);
         } else {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 
-    @PutMapping("/{productId}")
-    public ResponseEntity<String> putProduct(@PathVariable Long productId,
-                                             @RequestBody ProductDto productDto) {
-        productService.putProduct(productId, productDto);
-        return new ResponseEntity<>("Product was updated", HttpStatus.OK);
+    @PatchMapping("/{productId}")
+    public ResponseEntity<?> putProduct(@PathVariable Long productId,
+                                        @RequestBody ProductDto productDto) {
+        Product product = productService.putProduct(productId, productDto);
+        return new ResponseEntity<>("Product " + product.getProductId() + " was updated", HttpStatus.OK);
     }
 }

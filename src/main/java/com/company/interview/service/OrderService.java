@@ -1,88 +1,97 @@
 package com.company.interview.service;
 
-import com.company.interview.dto.OrderPeriod;
+import com.company.interview.dto.OrderPeriodDto;
+import com.company.interview.exception.badrequest.BadRequestException;
+import com.company.interview.exception.order.OrderNotFoundException;
+import com.company.interview.exception.product.ProductNotFoundException;
 import com.company.interview.model.Order;
 import com.company.interview.model.OrderProduct;
+import com.company.interview.model.Product;
 import com.company.interview.repository.OrderProductRepository;
 import com.company.interview.repository.OrderRepository;
+import com.company.interview.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
     private final OrderRepository orderRepository;
+    private final OrderProductRepository orderProductRepository;
+    private final ProductRepository productRepository;
 
     @Autowired
-    public OrderService(OrderRepository orderRepository, OrderProductRepository orderProductRepository) {
+    public OrderService(OrderRepository orderRepository, OrderProductRepository orderProductRepository, ProductRepository productRepository) {
         this.orderRepository = orderRepository;
+        this.orderProductRepository = orderProductRepository;
+        this.productRepository = productRepository;
     }
 
     public List<Order> getAllOrders() {
         return new ArrayList<>(orderRepository.findAll());
     }
 
-    public List<Order> getOrdersFromPeriod(OrderPeriod orderPeriod) {
-        if (orderPeriod.hasInvalidAttributes()) {
-            orderPeriod.setStartDate(LocalDateTime.now().minus(Duration.ofHours(10L)));
-            orderPeriod.setEndDate(LocalDateTime.now());
-        }
-        List<Order> orders = new ArrayList<>();
-        for (Order order : orderRepository.findAll()) {
-            //if (orderPeriod.getStartDate().isBefore(LocalDate.from(order.getOrderDate())) && orderPeriod.getEndDate().isAfter(LocalDate.from(order.getOrderDate()))) {
-            if (orderPeriod.getStartDate().isBefore(order.getOrderDate()) && orderPeriod.getEndDate().isAfter(order.getOrderDate())) {
-                orders.add(order);
+    public List<Order> getOrdersFromPeriod(OrderPeriodDto orderPeriodDto) {
+        if (!orderPeriodDto.hasInvalidAttributes()) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            LocalDateTime startDate;
+            LocalDateTime endDate;
+            try {
+                startDate = LocalDateTime.parse(orderPeriodDto.getStartDate(), formatter);
+                endDate = LocalDateTime.parse(orderPeriodDto.getEndDate(), formatter);
+            } catch (DateTimeParseException e) {
+                throw new BadRequestException("Bad format date");
+            }
+            if (startDate.isBefore(endDate)) {
+                return orderRepository.findAll().stream()
+                        .filter(o -> startDate.isBefore(o.getOrderDate()) && endDate.isAfter(o.getOrderDate()))
+                        .collect(Collectors.toList());
             }
         }
-        return orders;
-    }
-
-    public Optional<Order> getOrder(Long orderId) {
-        if (orderId != null && orderId >= 0) {
-            Optional<Order> optionalOrder = orderRepository.findById(orderId);
-            if (optionalOrder.isPresent()) {
-                Order order = optionalOrder.get();
-                order.setOrderDate(LocalDateTime.now());
-                order.setModificationDate(LocalDateTime.now());
-                order.setTotalPrice(getTotalPrice(order));
-                orderRepository.save(order);
-                return Optional.of(order);
-            }
-        }
-        return Optional.empty();
+        return new ArrayList<>();
     }
 
     public Order openOrder() {
-        Order order = new Order(LocalDateTime.now(), LocalDateTime.now(), 0.0);
+        Order order = new Order(LocalDateTime.now(), LocalDateTime.now(), 0.0, new HashSet<>());
         orderRepository.save(order);
         return order;
     }
 
-    public Long closeOrder(Long orderId) {
+    public Order calculateOrder(Long orderId) {
         if (orderId != null && orderId >= 0) {
-            Optional<Order> optionalOrder = orderRepository.findById(orderId);
-            if (optionalOrder.isPresent()) {
-
-                optionalOrder.get().setIsDone(true);
-
-                orderRepository.save(optionalOrder.get());
-
-                return optionalOrder.get().getOrderId();
+            Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
+            if (order.getIsDone()) {
+                for (OrderProduct orderProduct : order.getOrderProducts()) {
+                    Product product = productRepository.findById(orderProduct.getProduct().getProductId()).orElseThrow(() -> new ProductNotFoundException(orderProduct.getProduct().getProductId()));
+                    orderProduct.setPrice(product.getPrice());
+                    orderProductRepository.save(orderProduct);
+                    order.setTotalPrice(order.getOrderProducts().stream().mapToDouble(d -> d.getQuantity() * d.getPrice().doubleValue()).sum());
+                    order.setModificationDate(LocalDateTime.now());
+                    orderRepository.save(order);
+                }
+                orderRepository.save(order);
+                return order;
             }
+            throw new BadRequestException("Order already up to date");
         }
-        return -1L;
+        throw new OrderNotFoundException(orderId);
     }
 
-    private double getTotalPrice(Order order) {
-        double bigDecimal = 0.0;
-        for (OrderProduct orderProduct : order.getOrderProducts()) {
-            bigDecimal += orderProduct.getQuantity() * orderProduct.getPrice().doubleValue();
+    public Order closeOrder(Long orderId) {
+        if (orderId != null && orderId >= 0) {
+            Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
+            order.setIsDone(true);
+            order.setModificationDate(LocalDateTime.now());
+            orderRepository.save(order);
+            return order;
         }
-        return bigDecimal;
+        throw new OrderNotFoundException(orderId);
     }
 }

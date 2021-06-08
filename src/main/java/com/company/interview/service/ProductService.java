@@ -1,6 +1,7 @@
 package com.company.interview.service;
 
 import com.company.interview.dto.ProductDto;
+import com.company.interview.exception.product.ProductNotFoundException;
 import com.company.interview.model.Order;
 import com.company.interview.model.OrderProduct;
 import com.company.interview.model.Product;
@@ -10,7 +11,9 @@ import com.company.interview.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,10 +38,7 @@ public class ProductService {
         if (!productDto.hasInvalidAttributes()) {
             Product product = new Product();
             product.setName(productDto.getName());
-
             product.setPrice(productDto.getPrice());
-            product.setLastPrice(productDto.getPrice());
-
             productRepository.save(product);
             return Optional.of(product);
         } else {
@@ -46,39 +46,35 @@ public class ProductService {
         }
     }
 
-    public Optional<Product> putProduct(Long productId, ProductDto productDto) {
+    public Product putProduct(Long productId, ProductDto productDto) {
         if (productId != null && productId >= 0) {
-            Optional<Product> optionalProduct = productRepository.findById(productId);
-            if (optionalProduct.isPresent()) {
-                optionalProduct.get().setName(productDto.getName());
+            Product product = productRepository.findById(productId).orElseThrow(() -> new ProductNotFoundException(productId));
+            product.setName(productDto.getName());
+            product.setPrice(productDto.getPrice());
 
+//            Stream<OrderProduct> orderProductStream = orderRepository.findAll().stream()
+//                    .filter(o -> !o.getIsDone())
+//                    .flatMap(a -> a.getOrderProducts().stream())
+//                    .filter(b -> b.getProduct() == product);
+            try {
                 for (Order order : orderRepository.findAll()) {
                     if (!order.getIsDone()) {
                         for (OrderProduct orderProduct : order.getOrderProducts()) {
-                            if (orderProduct.getProduct() == optionalProduct.get()) {
+                            if (orderProduct.getProduct() == product) {
                                 orderProduct.setPrice(productDto.getPrice());
                                 orderProductRepository.save(orderProduct);
-                                order.setTotalPrice(getTotalPrice(order));
+                                order.setTotalPrice(order.getOrderProducts().stream().mapToDouble(d -> d.getQuantity() * d.getPrice().doubleValue()).sum());
+                                order.setModificationDate(LocalDateTime.now());
                                 orderRepository.save(order);
                             }
                         }
                     }
                 }
-                optionalProduct.get().setPrice(productDto.getPrice()); // CHANGE
-
-                productRepository.save(optionalProduct.get());
-
-                return optionalProduct;
+            } catch (ConcurrentModificationException e) {
+                productRepository.save(product);
+                return product;
             }
         }
-        return Optional.empty();
-    }
-
-    private double getTotalPrice(Order order) {
-        double bigDecimal = 0.0;
-        for (OrderProduct orderProduct : order.getOrderProducts()) {
-            bigDecimal += orderProduct.getQuantity() * orderProduct.getPrice().doubleValue();
-        }
-        return bigDecimal;
+        throw new ProductNotFoundException(productId);
     }
 }

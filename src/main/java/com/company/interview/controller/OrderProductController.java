@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/order-product")
@@ -27,7 +28,8 @@ public class OrderProductController {
 
     @PostMapping("")
     public ResponseEntity<String> postOrderProduct(@RequestBody OrderProductDto orderProductDto) {
-        if (orderProductService.postOrderProduct(orderProductDto).isPresent()) {
+        Optional<OrderProduct> optionalOrderProduct = orderProductService.postOrderProduct(orderProductDto);
+        if (optionalOrderProduct.isPresent()) {
             return new ResponseEntity<>("Product was added", HttpStatus.CREATED);
         } else {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);

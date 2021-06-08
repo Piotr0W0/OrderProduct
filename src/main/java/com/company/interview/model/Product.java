@@ -1,6 +1,7 @@
 package com.company.interview.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 @Table(name = "products")
 @Getter
 @Setter
+@JsonPropertyOrder({"productId", "name", "price"})
 public class Product {
     @Id
     @Column(name = "product_id", nullable = false, updatable = false)
@@ -23,7 +25,4 @@ public class Product {
 
     @Column(nullable = false)
     private BigDecimal price;
-
-    @Transient
-    private BigDecimal lastPrice = new BigDecimal(0);
 }
