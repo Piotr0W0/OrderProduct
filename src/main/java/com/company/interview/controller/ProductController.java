@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -21,25 +20,21 @@ public class ProductController {
         this.productService = productService;
     }
 
-    @GetMapping("")
-    public ResponseEntity<List<Product>> getAllProducts() {
+    @GetMapping
+    public ResponseEntity<?> getAllProducts() {
         return new ResponseEntity<>(productService.getAllProducts(), HttpStatus.OK);
     }
 
-    @PostMapping("")
-    public ResponseEntity<?> postProduct(@RequestBody ProductDto productDto) {
-        Optional<Product> optionalProduct = productService.postProduct(productDto);
-        if (optionalProduct.isPresent()) {
-            return new ResponseEntity<>("Product was created", HttpStatus.CREATED);
-        } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+    @PostMapping
+    public ResponseEntity<?> addProduct(@RequestBody ProductDto productDto) {
+        Optional<Product> optionalProduct = productService.addProduct(productDto);
+        return optionalProduct.<ResponseEntity<?>>map(product -> new ResponseEntity<>("Product " + product.getProductId() + " was created", HttpStatus.CREATED)).orElseGet(() -> new ResponseEntity<>("Bad format date", HttpStatus.BAD_REQUEST));
     }
 
     @PatchMapping("/{productId}")
-    public ResponseEntity<?> putProduct(@PathVariable Long productId,
-                                        @RequestBody ProductDto productDto) {
-        Product product = productService.putProduct(productId, productDto);
+    public ResponseEntity<?> updateProduct(@PathVariable Long productId,
+                                           @RequestBody ProductDto productDto) {
+        Product product = productService.updateProduct(productId, productDto);
         return new ResponseEntity<>("Product " + product.getProductId() + " was updated", HttpStatus.OK);
     }
 }

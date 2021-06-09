@@ -1,6 +1,7 @@
 package com.company.interview.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,16 +9,22 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonPropertyOrder({"orderId", "productId", "quantity"})
 public class OrderProductDto {
-    private Long quantity;
+    @JsonProperty("order_id")
+    private Long orderId;
 
     @JsonProperty("product_id")
     private Long productId;
 
-    @JsonProperty("order_id")
-    private Long orderId;
+    private Long quantity;
 
-    public boolean hasInvalidAttributes() {
-        return quantity == null || quantity <= 0 || productId == null || productId < 0 || orderId == null || orderId < 0;
+    @Override
+    public String toString() {
+        return "OrderProductRequest { " +
+                "order_id = " + orderId +
+                ", product_id = " + productId +
+                ", quantity = " + quantity +
+                " } ";
     }
 }

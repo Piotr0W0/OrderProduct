@@ -1,6 +1,5 @@
 package com.company.interview.controller;
 
-import com.company.interview.dto.OrderPeriodDto;
 import com.company.interview.model.Order;
 import com.company.interview.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,17 +19,19 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @GetMapping("")
-    public ResponseEntity<List<Order>> getAllOrders() {
+    @GetMapping
+    public ResponseEntity<?> getAllOrders() {
         return new ResponseEntity<>(orderService.getAllOrders(), HttpStatus.OK);
     }
 
     @GetMapping("/period")
-    public ResponseEntity<List<Order>> getOrdersFromPeriod(OrderPeriodDto orderPeriodDto) {
-        return new ResponseEntity<>(orderService.getOrdersFromPeriod(orderPeriodDto), HttpStatus.OK);
+    public ResponseEntity<?> getOrdersFromPeriod(@RequestParam(value = "from", defaultValue = "2021-06-10 08:00") String from,
+                                                 @RequestParam(value = "to", defaultValue = "2022-06-10 08:00") String to) {
+        List<Order> ordersFromPeriod = orderService.getOrdersFromPeriod(from, to);
+        return new ResponseEntity<>(ordersFromPeriod, HttpStatus.OK);
     }
 
-    @PostMapping("")
+    @PostMapping
     public ResponseEntity<?> openOrder() {
         return new ResponseEntity<>("Order " + orderService.openOrder().getOrderId() + " was created", HttpStatus.CREATED);
     }

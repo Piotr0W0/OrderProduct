@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class ProductNotFoundAdvice {
 
     @ExceptionHandler(ProductNotFoundException.class)
-    public ResponseEntity<ExceptionDto> GoalNotFoundHandler(ProductNotFoundException ex) {
+    public ResponseEntity<?> GoalNotFoundHandler(ProductNotFoundException ex) {
         return new ResponseEntity<>(new ExceptionDto(ex.getMessage()), HttpStatus.NOT_FOUND);
     }
 }

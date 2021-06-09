@@ -1,7 +1,9 @@
 package com.company.interview.service;
 
 import com.company.interview.dto.ProductDto;
+import com.company.interview.exception.badrequest.BadRequestException;
 import com.company.interview.exception.product.ProductNotFoundException;
+import com.company.interview.model.Order;
 import com.company.interview.model.Product;
 import com.company.interview.repository.OrderProductRepository;
 import com.company.interview.repository.OrderRepository;
@@ -14,11 +16,12 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ContextConfiguration(classes = {ProductService.class})
@@ -37,122 +40,218 @@ public class ProductServiceTest {
     private ProductService productService;
 
     @Test
-    public void Should_Get_All_Products() {
+    public void Test_Constructor() {
+        assertTrue((new ProductService(mock(OrderProductRepository.class), mock(ProductRepository.class),
+                mock(OrderRepository.class))).getAllProducts().isEmpty());
+    }
+
+    @Test
+    public void Test_GetAllProducts() {
         when(this.productRepository.findAll()).thenReturn(new ArrayList<>());
         assertTrue(this.productService.getAllProducts().isEmpty());
         verify(this.productRepository).findAll();
     }
 
     @Test
-    public void Should_Post_Empty_Product() {
-        assertFalse(this.productService.postProduct(new ProductDto()).isPresent());
+    public void Test_AddProduct_1() {
+        assertThrows(BadRequestException.class, () -> this.productService.addProduct(new ProductDto()));
     }
 
     @Test
-    public void Should_Not_Post_Product_With_Invalid_Attributes() {
-        ProductDto productDto = mock(ProductDto.class);
-        when(productDto.hasInvalidAttributes()).thenReturn(true);
-        assertFalse(this.productService.postProduct(productDto).isPresent());
-        verify(productDto).hasInvalidAttributes();
-        assertTrue(this.productService.getAllProducts().isEmpty());
-    }
-
-    @Test
-    public void Should_Post_Product() {
+    public void Test_AddProduct_2() {
         Product product = new Product();
-        product.setProductId(1L);
+        product.setProductId(123L);
         product.setName("Product");
-        product.setPrice(BigDecimal.valueOf(10L));
+        product.setPrice(BigDecimal.valueOf(42L));
         when(this.productRepository.save(any())).thenReturn(product);
         ProductDto productDto = mock(ProductDto.class);
-        BigDecimal valueOfResult = BigDecimal.valueOf(10L);
+        BigDecimal valueOfResult = BigDecimal.valueOf(42L);
         when(productDto.getPrice()).thenReturn(valueOfResult);
-        when(productDto.getName()).thenReturn("something");
-        when(productDto.hasInvalidAttributes()).thenReturn(false);
-        Optional<Product> actualPostProductResult = this.productService.postProduct(productDto);
-        assertTrue(actualPostProductResult.isPresent());
-        Product getResult = actualPostProductResult.get();
-        assertEquals("something", getResult.getName());
+        when(productDto.getName()).thenReturn("foo");
+        Optional<Product> actualAddProductResult = this.productService.addProduct(productDto);
+        assertTrue(actualAddProductResult.isPresent());
+        Product getResult = actualAddProductResult.get();
+        assertEquals("foo", getResult.getName());
         BigDecimal price = getResult.getPrice();
         assertSame(valueOfResult, price);
-        assertEquals("10", price.toString());
+        assertEquals("42", price.toString());
         verify(this.productRepository).save(any());
-        verify(productDto).getName();
-        verify(productDto).getPrice();
-        verify(productDto).hasInvalidAttributes();
+        verify(productDto, times(2)).getName();
+        verify(productDto, times(2)).getPrice();
         assertTrue(this.productService.getAllProducts().isEmpty());
     }
 
     @Test
-    public void Should_Throw_ProductNotFoundException_When_Can_Not_Find_Product() {
+    public void Test_AddProduct_3() {
         Product product = new Product();
-        product.setProductId(1L);
+        product.setProductId(123L);
         product.setName("Product");
-        product.setPrice(BigDecimal.valueOf(10L));
-        Optional<Product> ofResult = Optional.of(product);
-
-        Product product1 = new Product();
-        product1.setProductId(1L);
-        product1.setName("Product");
-        product1.setPrice(BigDecimal.valueOf(10L));
-        when(this.productRepository.save(any())).thenReturn(product1);
-        when(this.productRepository.findById(any())).thenReturn(ofResult);
-        when(this.orderRepository.findAll()).thenReturn(new ArrayList<>());
-
-        assertTrue(assertThrows(ProductNotFoundException.class,
-                () -> this.productService.putProduct(1L, new ProductDto()),
-                "Could not find product")
-                .getMessage()
-                .contains("Could not find product"));
+        product.setPrice(BigDecimal.valueOf(42L));
+        when(this.productRepository.save(any())).thenReturn(product);
+        ProductDto productDto = mock(ProductDto.class);
+        when(productDto.getPrice()).thenReturn(BigDecimal.valueOf(-1L));
+        when(productDto.getName()).thenReturn("foo");
+        assertThrows(BadRequestException.class, () -> this.productService.addProduct(productDto));
+        verify(productDto).getName();
+        verify(productDto).getPrice();
     }
 
     @Test
-    public void Should_Throw_Exception() {
+    public void Test_AddProduct_4() {
         Product product = new Product();
-        product.setProductId(1L);
+        product.setProductId(123L);
         product.setName("Product");
-        product.setPrice(BigDecimal.valueOf(10L));
+        product.setPrice(BigDecimal.valueOf(42L));
         when(this.productRepository.save(any())).thenReturn(product);
-        when(this.productRepository.findById(any())).thenReturn(Optional.empty());
-        when(this.orderRepository.findAll()).thenReturn(new ArrayList<>());
-        assertThrows(ProductNotFoundException.class, () -> this.productService.putProduct(1L, new ProductDto()));
+        ProductDto productDto = mock(ProductDto.class);
+        when(productDto.getPrice()).thenReturn(null);
+        when(productDto.getName()).thenReturn("foo");
+        assertThrows(BadRequestException.class, () -> this.productService.addProduct(productDto));
+        verify(productDto).getName();
+        verify(productDto).getPrice();
+    }
+
+    @Test
+    public void Test_UpdateProduct_1() {
+        Product product = new Product();
+        product.setProductId(123L);
+        product.setName("Product");
+        product.setPrice(BigDecimal.valueOf(42L));
+        Optional<Product> ofResult = Optional.of(product);
+        when(this.productRepository.findById(any())).thenReturn(ofResult);
+        assertThrows(BadRequestException.class, () -> this.productService.updateProduct(123L, new ProductDto()));
         verify(this.productRepository).findById(any());
     }
 
     @Test
-    public void Should_Throw_ProductNotFoundException_When_productId_Is_Null() {
+    public void Test_UpdateProduct_2() {
+        when(this.productRepository.findById(any())).thenReturn(Optional.empty());
+        assertThrows(ProductNotFoundException.class, () -> this.productService.updateProduct(123L, new ProductDto()));
+        verify(this.productRepository).findById(any());
+    }
+
+    @Test
+    public void Test_UpdateProduct_3() {
         Product product = new Product();
-        product.setProductId(1L);
+        product.setProductId(123L);
         product.setName("Product");
-        product.setPrice(BigDecimal.valueOf(10L));
+        product.setPrice(BigDecimal.valueOf(42L));
+        Optional<Product> ofResult = Optional.of(product);
+        when(this.productRepository.findById(any())).thenReturn(ofResult);
+        assertThrows(BadRequestException.class, () -> this.productService.updateProduct(0L, new ProductDto()));
+    }
+
+    @Test
+    public void Test_UpdateProduct_4() {
+        Product product = new Product();
+        product.setProductId(123L);
+        product.setName("Product");
+        product.setPrice(BigDecimal.valueOf(42L));
+        Optional<Product> ofResult = Optional.of(product);
+        when(this.productRepository.findById(any())).thenReturn(ofResult);
+
+        ProductDto productDto = new ProductDto();
+        productDto.setName("Product");
+        assertThrows(BadRequestException.class, () -> this.productService.updateProduct(123L, productDto));
+        verify(this.productRepository).findById(any());
+    }
+
+    @Test
+    public void Test_UpdateProduct_5() {
+        Product product = new Product();
+        product.setProductId(123L);
+        product.setName("Product");
+        product.setPrice(BigDecimal.valueOf(42L));
         Optional<Product> ofResult = Optional.of(product);
 
         Product product1 = new Product();
         product1.setProductId(123L);
-        product1.setName("Product");
-        product1.setPrice(BigDecimal.valueOf(10L));
+        product1.setName("Product1");
+        product1.setPrice(BigDecimal.valueOf(42L));
         when(this.productRepository.save(any())).thenReturn(product1);
         when(this.productRepository.findById(any())).thenReturn(ofResult);
         when(this.orderRepository.findAll()).thenReturn(new ArrayList<>());
-        assertThrows(ProductNotFoundException.class, () -> this.productService.putProduct(null, new ProductDto()));
+
+        ProductDto productDto = new ProductDto();
+        BigDecimal valueOfResult = BigDecimal.valueOf(42L);
+        productDto.setPrice(valueOfResult);
+        productDto.setName("Product");
+        Product actualUpdateProductResult = this.productService.updateProduct(123L, productDto);
+        assertSame(product, actualUpdateProductResult);
+        assertEquals("Product", actualUpdateProductResult.getName());
+        BigDecimal price = actualUpdateProductResult.getPrice();
+        assertSame(valueOfResult, price);
+        assertEquals("42", price.toString());
+        verify(this.productRepository).findById(any());
+        verify(this.productRepository).save(any());
+        verify(this.orderRepository).findAll();
+        assertTrue(this.productService.getAllProducts().isEmpty());
     }
 
     @Test
-    public void Should_Throw_ProductNotFoundException_When_productId_Is_Negative() {
+    public void Test_UpdateProduct_6() {
         Product product = new Product();
-        product.setProductId(1L);
+        product.setProductId(123L);
         product.setName("Product");
-        product.setPrice(BigDecimal.valueOf(10L));
+        product.setPrice(BigDecimal.valueOf(42L));
         Optional<Product> ofResult = Optional.of(product);
 
         Product product1 = new Product();
-        product1.setProductId(1L);
-        product1.setName("Product");
-        product1.setPrice(BigDecimal.valueOf(10L));
+        product1.setProductId(123L);
+        product1.setName("Product1");
+        product1.setPrice(BigDecimal.valueOf(42L));
+        when(this.productRepository.save(any())).thenReturn(product1);
+        when(this.productRepository.findById(any())).thenReturn(ofResult);
+
+        Order order = new Order();
+        order.setModificationDate(LocalDateTime.of(1, 1, 1, 1, 1));
+        order.setOrderProducts(new HashSet<>());
+        order.setIsDone(true);
+        order.setOrderDate(LocalDateTime.of(1, 1, 1, 1, 1));
+        order.setTotalPrice(0.0);
+        order.setOrderId(123L);
+
+        ArrayList<Order> orderList = new ArrayList<>();
+        orderList.add(order);
+        when(this.orderRepository.findAll()).thenReturn(orderList);
+
+        ProductDto productDto = new ProductDto();
+        BigDecimal valueOfResult = BigDecimal.valueOf(42L);
+        productDto.setPrice(valueOfResult);
+        productDto.setName("Product");
+        Product actualUpdateProductResult = this.productService.updateProduct(123L, productDto);
+        assertSame(product, actualUpdateProductResult);
+        assertEquals("Product", actualUpdateProductResult.getName());
+        BigDecimal price = actualUpdateProductResult.getPrice();
+        assertSame(valueOfResult, price);
+        assertEquals("42", price.toString());
+        verify(this.productRepository).findById(any());
+        verify(this.productRepository).save(any());
+        verify(this.orderRepository).findAll();
+        assertTrue(this.productService.getAllProducts().isEmpty());
+    }
+
+    @Test
+    public void Test_UpdateProduct_7() {
+        Product product = new Product();
+        product.setProductId(123L);
+        product.setName("Product");
+        product.setPrice(BigDecimal.valueOf(42L));
+        Optional<Product> ofResult = Optional.of(product);
+
+        Product product1 = new Product();
+        product1.setProductId(123L);
+        product1.setName("Product1");
+        product1.setPrice(BigDecimal.valueOf(42L));
         when(this.productRepository.save(any())).thenReturn(product1);
         when(this.productRepository.findById(any())).thenReturn(ofResult);
         when(this.orderRepository.findAll()).thenReturn(new ArrayList<>());
-        assertThrows(ProductNotFoundException.class, () -> this.productService.putProduct(-1L, new ProductDto()));
+
+        ProductDto productDto = new ProductDto();
+        productDto.setPrice(BigDecimal.valueOf(-1L));
+        productDto.setName("Product");
+        assertThrows(BadRequestException.class, () -> this.productService.updateProduct(123L, productDto));
+        verify(this.productRepository).findById(any());
     }
 }
 

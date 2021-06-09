@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class OrderNotFoundAdvice {
 
     @ExceptionHandler(OrderNotFoundException.class)
-    public ResponseEntity<ExceptionDto> GoalNotFoundHandler(OrderNotFoundException ex) {
+    public ResponseEntity<?> GoalNotFoundHandler(OrderNotFoundException ex) {
         return new ResponseEntity<>(new ExceptionDto(ex.getMessage()), HttpStatus.NOT_FOUND);
     }
 }

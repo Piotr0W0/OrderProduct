@@ -21,18 +21,19 @@ public class OrderProductController {
         this.orderProductService = orderProductService;
     }
 
-    @GetMapping("")
-    public ResponseEntity<List<OrderProduct>> getAllOrderProducts() {
-        return new ResponseEntity<>(orderProductService.getOrderProducts(), HttpStatus.OK);
+    @GetMapping
+    public ResponseEntity<?> getAllOrderProducts() {
+        List<OrderProduct> orderProducts = orderProductService.getOrderProducts();
+        return new ResponseEntity<>(orderProducts, HttpStatus.OK);
     }
 
-    @PostMapping("")
-    public ResponseEntity<String> postOrderProduct(@RequestBody OrderProductDto orderProductDto) {
-        Optional<OrderProduct> optionalOrderProduct = orderProductService.postOrderProduct(orderProductDto);
+    @PostMapping
+    public ResponseEntity<?> addOrderProduct(@RequestBody OrderProductDto orderProductDto) {
+        Optional<OrderProduct> optionalOrderProduct = orderProductService.addOrderProduct(orderProductDto);
         if (optionalOrderProduct.isPresent()) {
             return new ResponseEntity<>("Product was added", HttpStatus.CREATED);
         } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>("Bad format date", HttpStatus.BAD_REQUEST);
         }
     }
 }

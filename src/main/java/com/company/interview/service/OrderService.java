@@ -1,6 +1,5 @@
 package com.company.interview.service;
 
-import com.company.interview.dto.OrderPeriodDto;
 import com.company.interview.exception.badrequest.BadRequestException;
 import com.company.interview.exception.order.OrderNotFoundException;
 import com.company.interview.exception.product.ProductNotFoundException;
@@ -10,6 +9,7 @@ import com.company.interview.model.Product;
 import com.company.interview.repository.OrderProductRepository;
 import com.company.interview.repository.OrderRepository;
 import com.company.interview.repository.ProductRepository;
+import com.company.interview.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -38,24 +38,22 @@ public class OrderService {
         return new ArrayList<>(orderRepository.findAll());
     }
 
-    public List<Order> getOrdersFromPeriod(OrderPeriodDto orderPeriodDto) {
-        if (!orderPeriodDto.hasInvalidAttributes()) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            LocalDateTime startDate;
-            LocalDateTime endDate;
-            try {
-                startDate = LocalDateTime.parse(orderPeriodDto.getStartDate(), formatter);
-                endDate = LocalDateTime.parse(orderPeriodDto.getEndDate(), formatter);
-            } catch (DateTimeParseException e) {
-                throw new BadRequestException("Bad format date");
-            }
-            if (startDate.isBefore(endDate)) {
-                return orderRepository.findAll().stream()
-                        .filter(o -> startDate.isBefore(o.getOrderDate()) && endDate.isAfter(o.getOrderDate()))
-                        .collect(Collectors.toList());
-            }
+    public List<Order> getOrdersFromPeriod(String from, String to) {
+        final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        LocalDateTime startDate;
+        LocalDateTime endDate;
+        try {
+            startDate = LocalDateTime.parse(from, formatter);
+            endDate = LocalDateTime.parse(to, formatter);
+        } catch (DateTimeParseException e) {
+            throw new BadRequestException("Bad format date from: " + from + " to: " + to);
         }
-        return new ArrayList<>();
+        if (startDate.isBefore(endDate)) {
+            return orderRepository.findAll().stream()
+                    .filter(o -> startDate.isBefore(o.getOrderDate()) && endDate.isAfter(o.getOrderDate()))
+                    .collect(Collectors.toList());
+        }
+        throw new BadRequestException("End date " + to + " is before start date " + from);
     }
 
     public Order openOrder() {
@@ -65,33 +63,40 @@ public class OrderService {
     }
 
     public Order calculateOrder(Long orderId) {
-        if (orderId != null && orderId >= 0) {
+        if (Validator.checkId(orderId)) {
             Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
             if (order.getIsDone()) {
                 for (OrderProduct orderProduct : order.getOrderProducts()) {
-                    Product product = productRepository.findById(orderProduct.getProduct().getProductId()).orElseThrow(() -> new ProductNotFoundException(orderProduct.getProduct().getProductId()));
+                    Product product = productRepository.findById(orderProduct.getProduct().getProductId()).orElseThrow(() ->
+                            new ProductNotFoundException(orderProduct.getProduct().getProductId()));
                     orderProduct.setPrice(product.getPrice());
                     orderProductRepository.save(orderProduct);
-                    order.setTotalPrice(order.getOrderProducts().stream().mapToDouble(d -> d.getQuantity() * d.getPrice().doubleValue()).sum());
+                    order.setTotalPrice(order.getOrderProducts()
+                            .stream()
+                            .mapToDouble(d -> d.getQuantity() * d.getPrice().doubleValue())
+                            .sum());
                     order.setModificationDate(LocalDateTime.now());
                     orderRepository.save(order);
                 }
                 orderRepository.save(order);
                 return order;
             }
-            throw new BadRequestException("Order already up to date");
+            throw new BadRequestException("Order " + orderId + " already up to date");
         }
-        throw new OrderNotFoundException(orderId);
+        throw new BadRequestException("Bad request data - order_id: " + orderId);
     }
 
     public Order closeOrder(Long orderId) {
-        if (orderId != null && orderId >= 0) {
+        if (Validator.checkId(orderId)) {
             Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
-            order.setIsDone(true);
-            order.setModificationDate(LocalDateTime.now());
-            orderRepository.save(order);
-            return order;
+            if (!order.getIsDone()) {
+                order.setIsDone(true);
+                order.setModificationDate(LocalDateTime.now());
+                orderRepository.save(order);
+                return order;
+            }
+            throw new BadRequestException("Order " + orderId + " already closed");
         }
-        throw new OrderNotFoundException(orderId);
+        throw new BadRequestException("Bad request data - order_id: " + orderId);
     }
 }
