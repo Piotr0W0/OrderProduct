@@ -42,10 +42,14 @@ Project is set up on the requirements of task description.
 git clone https://github.com/Piotr0W0/OrderProduct.git
  ```
 
-Project was written and tested in IntelliJ IDEA environment. You can also run the application using maven. To do it you need [maven](https://maven.apache.org/install.html).
+Project was written and tested in IntelliJ IDEA environment. 
+You can also run the application in the terminal using maven. To do it you need [maven](https://maven.apache.org/install.html).
 
-In order to run the application you have to run command
-
+In order to run the application you have to go to project directory using
+```cmd
+cd OrderProduct
+```
+And then you can run project using
 ```
 mvn spring-boot:run
 ```
